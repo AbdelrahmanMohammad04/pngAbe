@@ -3,10 +3,11 @@
 use std::convert::TryFrom;
 use std::ops::Index;
 use std::fmt;
-use std::str::{self, from_utf8, FromStr};
+use std::str::{self, FromStr};
 
 use crate::{Error, Result};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PngByte {
     Critical,
@@ -20,6 +21,7 @@ pub struct ChunkType {
     r#type: [u8; 4],
 }
 
+#[allow(dead_code)]
 impl ChunkType {
     /// Returns the raw bytes contained in this chunk
     pub fn bytes(&self) -> [u8; 4] {
@@ -45,7 +47,7 @@ impl ChunkType {
     pub fn is_safe_to_copy(&self) -> bool {
         (self.r#type[3] >> 5) & 1 == 1
     }
-
+ 
     /// Returns the property state of byte defined in enum as described in the PNG spec
     pub fn is_byte_valid(&self, byte: PngByte) -> bool {
         if byte != PngByte::SafeToCopy {

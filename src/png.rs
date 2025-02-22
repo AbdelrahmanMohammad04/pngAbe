@@ -1,4 +1,3 @@
-
 #![allow(unused_variables)]
 
 use std::convert::TryFrom;
@@ -10,12 +9,10 @@ pub use std::str::FromStr;
 
 use crate::{Error, Result};
 use crate::chunk::Chunk;
-use crate::chunk_type::ChunkType;
 
 #[derive(Debug)]
 pub struct Png {
-    header: [u8; 8],
-    chunks: Vec<Chunk>,
+    chunks: Vec<Chunk>
 }
 
 impl Png {
@@ -24,7 +21,6 @@ impl Png {
     /// Creates a `Png` from a list of chunks using the correct header
     pub fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Png {
-            header: Png::STANDARD_HEADER,
             chunks,
         }
     }
@@ -32,23 +28,27 @@ impl Png {
     /// Creates a `Png` from a file path
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Png {
-            header: Png::STANDARD_HEADER,
             chunks: Vec::new(),
         })
     }
 
     /// Appends a chunk to the end of this `Png` file's `Chunk` list.
     pub fn append_chunk(&mut self, chunk: Chunk) {
+        let chunk_bytes = chunk.as_bytes();
         
+        // make sure the chunk is valid first
+        let validated_chunk = Chunk::try_from(chunk_bytes.as_ref()).expect("Invalid Chunk");
+        self.chunks.push(validated_chunk);
     }
 
     /// Searches for a `Chunk` with the specified `chunk_type` and removes the first
     /// matching `Chunk` from this `Png` list of chunks.
     pub fn remove_first_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
-        let chunk_type = ChunkType::from_str("TeSt")?;
-        let data: Vec<u8> = "hello i exist".bytes().collect();
-
-        Ok(Chunk::new(chunk_type, data))
+        let chunk_index = self.chunks.iter()
+            .position(|chunk| chunk.chunk_type().bytes() == chunk_type.as_bytes())
+            .ok_or(Error::from("Cannot find such chunk"))?;
+        
+        Ok(self.chunks.remove(chunk_index))
     }
 
     /// The header of this PNG.
@@ -198,7 +198,6 @@ mod png_tests {
 
         assert!(png.is_err());
     }
-
 
     #[test]
     fn test_list_chunks() {

@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use std::convert::TryFrom;
 use std::fmt;
 use crc;
@@ -15,7 +13,6 @@ pub struct Chunk {
     crc: u32,
 }
 
-#[allow(dead_code)]
 impl Chunk {
     pub fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
         let crc: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);

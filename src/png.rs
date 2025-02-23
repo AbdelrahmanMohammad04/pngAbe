@@ -5,9 +5,7 @@ use std::fmt;
 use std::fs;
 use std::io::{BufReader, Read};
 use std::path::Path;
-pub use std::str::FromStr;
 
-use crate::chunk;
 use crate::{Error, Result};
 use crate::chunk::Chunk;
 
@@ -17,10 +15,10 @@ pub struct Png {
     chunks: Vec<Chunk>,
 }
 
+#[allow(dead_code)]
 impl Png {
     pub const STANDARD_HEADER: [u8; 8] = [137, 80, 78, 71, 13, 10, 26, 10];
 
-    /// Creates a `Png` from a list of chunks using the correct header
     pub fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Png {
             header: Png::STANDARD_HEADER,
@@ -28,23 +26,21 @@ impl Png {
         }
     }
 
-    /// Creates a `Png` from a file path
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let bytes = fs::read(path)?;
+        let file = fs::File::open(path)?;
+        let reader = BufReader::new(file);
+        let bytes: Vec<u8> = reader.bytes().collect::<std::io::Result<_>>()?;
+
         Ok(Self::try_from(&bytes[..])?)
     }
 
-    /// Appends a chunk to the end of this `Png` file's `Chunk` list.
     pub fn append_chunk(&mut self, chunk: Chunk) {
         let chunk_bytes = chunk.as_bytes();
         
-        // make sure the chunk is valid first
         let validated_chunk = Chunk::try_from(chunk_bytes.as_ref()).expect("Invalid Chunk");
         self.chunks.push(validated_chunk);
     }
 
-    /// Searches for a `Chunk` with the specified `chunk_type` and removes the first
-    /// matching `Chunk` from this `Png` list of chunks.
     pub fn remove_first_chunk(&mut self, chunk_type: &str) -> Result<Chunk> {
         let chunk_index = self.chunks.iter()
             .position(|chunk| chunk.chunk_type().bytes() == chunk_type.as_bytes())
@@ -53,18 +49,14 @@ impl Png {
         Ok(self.chunks.remove(chunk_index))
     }
 
-    /// The header of this PNG.
     pub fn header(&self) -> &[u8; 8] {
         &self.header
     }
 
-    /// Lists the `Chunk`s stored in this `Png`
     pub fn chunks(&self) -> &[Chunk] {
         &self.chunks
     }
 
-    /// Searches for a `Chunk` with the specified `chunk_type` and returns the first
-    /// matching `Chunk` from this `Png`.
     pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
         let mut search_type: [u8; 4] = [0; 4];
         
@@ -75,8 +67,6 @@ impl Png {
             _ => return None
         }
 
-        println!("search type is: {:?}", search_type);
-
         for chunk in &self.chunks {
             if chunk.chunk_type().bytes() == search_type {
                 return Some(&chunk);
@@ -86,8 +76,6 @@ impl Png {
         None
     }
 
-    /// Returns this `Png` as a byte sequence.
-    /// These bytes will contain the header followed by the bytes of all of the chunks.
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut result = Vec::new();
     
@@ -140,7 +128,7 @@ impl fmt::Display for Png {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{} chunks", self.chunks.len())?;
         for chunk in self.chunks.iter() {
-            writeln!(f, "{} {} {}", chunk.chunk_type().to_string(), chunk.length(), chunk.crc())?;
+            writeln!(f, "Chunk type: {}, Length: {}, Crc: {}", chunk.chunk_type().to_string(), chunk.length(), chunk.crc())?;
         }
         Ok(())
     }
@@ -167,6 +155,8 @@ mod png_tests {
     }
 
     fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk> {
+        use std::str::FromStr;
+        
         let chunk_type = ChunkType::from_str(chunk_type)?;
         let data: Vec<u8> = data.bytes().collect();
 
@@ -281,15 +271,12 @@ mod png_tests {
 
     #[test]
     fn test_from_file() {
-        // Create a temporary test file with PNG_FILE bytes
         let temp_dir = std::env::temp_dir();
         let file_path = temp_dir.join("test_png.png");
         std::fs::write(&file_path, &PNG_FILE).unwrap();
 
-        // Test reading it
         let png = Png::from_file(file_path).unwrap();
         
-        // Verify the contents match what we expect
         assert_eq!(png.header(), &Png::STANDARD_HEADER);
     }
 

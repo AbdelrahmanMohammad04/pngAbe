@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use std::convert::TryFrom;
 use std::ops::Index;
 use std::fmt;
@@ -23,32 +21,26 @@ pub struct ChunkType {
 
 #[allow(dead_code)]
 impl ChunkType {
-    /// Returns the raw bytes contained in this chunk
     pub fn bytes(&self) -> [u8; 4] {
         self.r#type
     }
 
-    /// Returns the property state of the first byte as described in the PNG spec
     pub fn is_critical(&self) -> bool {
         (self.r#type[0] >> 5) & 1 == 0
     }
 
-    /// Returns the property state of the second byte as described in the PNG spec
     pub fn is_public(&self) -> bool {
         (self.r#type[1] >> 5) & 1 == 0
     }
 
-    /// Returns the property state of the third byte as described in the PNG spec
     pub fn is_reserved_bit_valid(&self) -> bool {
         (self.r#type[2] >> 5) & 1 == 0
     }
 
-    /// Returns the property state of the fourth byte as described in the PNG spec
     pub fn is_safe_to_copy(&self) -> bool {
         (self.r#type[3] >> 5) & 1 == 1
     }
  
-    /// Returns the property state of byte defined in enum as described in the PNG spec
     pub fn is_byte_valid(&self, byte: PngByte) -> bool {
         if byte != PngByte::SafeToCopy {
             return (self[byte] >> 5) & 1 == 0
@@ -56,13 +48,10 @@ impl ChunkType {
         return (self[byte] >> 5) & 1 == 1
     }
 
-    /// Valid bytes are represented by the characters A-Z or a-z
     pub fn is_valid_byte(byte: u8) -> bool {
         (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122)
     }
 
-    /// Returns true if the reserved byte is valid and all four bytes are represented by the characters A-Z or a-z.
-    /// Note that this chunk type should always be valid as it is validated during construction.
     pub fn is_valid(&self) -> bool {
         for byte in self.r#type.iter() {
             if !Self::is_valid_byte(*byte) {

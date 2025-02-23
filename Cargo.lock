@@ -13,7 +13,7 @@ dependencies = [
  "anstyle-query",
  "anstyle-wincon",
  "colorchoice",
- "is_terminal_polyfill
+ "is_terminal_polyfill",
  "utf8parse",
 ]
 

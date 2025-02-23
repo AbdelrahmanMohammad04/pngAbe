@@ -7,12 +7,14 @@ use std::io::{BufReader, Read};
 use std::path::Path;
 pub use std::str::FromStr;
 
+use crate::chunk;
 use crate::{Error, Result};
 use crate::chunk::Chunk;
 
 #[derive(Debug)]
 pub struct Png {
-    chunks: Vec<Chunk>
+    header: [u8; 8],
+    chunks: Vec<Chunk>,
 }
 
 impl Png {
@@ -21,15 +23,15 @@ impl Png {
     /// Creates a `Png` from a list of chunks using the correct header
     pub fn from_chunks(chunks: Vec<Chunk>) -> Self {
         Png {
+            header: Png::STANDARD_HEADER,
             chunks,
         }
     }
 
     /// Creates a `Png` from a file path
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        Ok(Png {
-            chunks: Vec::new(),
-        })
+        let bytes = fs::read(path)?;
+        Ok(Self::try_from(&bytes[..])?)
     }
 
     /// Appends a chunk to the end of this `Png` file's `Chunk` list.
@@ -53,7 +55,7 @@ impl Png {
 
     /// The header of this PNG.
     pub fn header(&self) -> &[u8; 8] {
-        &[0; 8]
+        &self.header
     }
 
     /// Lists the `Chunk`s stored in this `Png`
@@ -87,8 +89,15 @@ impl Png {
     /// Returns this `Png` as a byte sequence.
     /// These bytes will contain the header followed by the bytes of all of the chunks.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let ret: Vec<u8> = Vec::new();
-        ret
+        let mut result = Vec::new();
+    
+        result.extend(self.header.iter().cloned());
+        
+        for chunk in &self.chunks {
+            result.extend(chunk.as_bytes());
+        }
+        
+        result
     }
 }
 
@@ -96,13 +105,44 @@ impl TryFrom<&[u8]> for Png {
     type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Png> {
-        todo!()
+        let header: [u8; 8] = bytes.get(0..8)
+            .ok_or("Not enough bytes")?
+            .try_into()
+            .map_err(|_| "Slice conversion failed")?;
+
+        if header != Png::STANDARD_HEADER {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid header"
+            )));
+        }
+        
+        let mut chunks: Vec<Chunk> = Vec::new();
+        let mut index: usize = 8;
+        
+        while index < bytes.len() {
+            // Read length from first 4 bytes
+            let length = u32::from_be_bytes(bytes[index..index + 4].try_into()?);
+            // Calculate total chunk size (length + 12 for metadata)
+            let chunk_size = length as usize + 12;
+            
+            let chunk = Chunk::try_from(&bytes[index..index + chunk_size])?;
+            
+            index += chunk_size;
+            chunks.push(chunk);
+        }
+
+        Ok(Png::from_chunks(chunks))
     }
 }
 
 impl fmt::Display for Png {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        writeln!(f, "{} chunks", self.chunks.len())?;
+        for chunk in self.chunks.iter() {
+            writeln!(f, "{} {} {}", chunk.chunk_type().to_string(), chunk.length(), chunk.crc())?;
+        }
+        Ok(())
     }
 }
 
@@ -237,6 +277,20 @@ mod png_tests {
     fn test_png_from_image_file() {
         let png = Png::try_from(&PNG_FILE[..]);
         assert!(png.is_ok());
+    }
+
+    #[test]
+    fn test_from_file() {
+        // Create a temporary test file with PNG_FILE bytes
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("test_png.png");
+        std::fs::write(&file_path, &PNG_FILE).unwrap();
+
+        // Test reading it
+        let png = Png::from_file(file_path).unwrap();
+        
+        // Verify the contents match what we expect
+        assert_eq!(png.header(), &Png::STANDARD_HEADER);
     }
 
     #[test]

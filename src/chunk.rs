@@ -31,17 +31,14 @@ impl Chunk {
         }
     }
 
-    /// The length of the data portion of this chunk.
     pub fn length(&self) -> u32 {
         self.length
     }
 
-    /// The `ChunkType` of this chunk
     pub fn chunk_type(&self) -> &ChunkType {
         &self.chunk_type
     }
 
-    /// The raw data contained in this chunk in bytes
     pub fn data(&self) -> &[u8] {
         &self.data
     }
@@ -51,18 +48,10 @@ impl Chunk {
         self.crc
     }
 
-    /// Returns the data stored in this chunk as a `String`. This function will return an error
-    /// if the stored data is not valid UTF-8.
     pub fn data_as_string(&self) -> Result<String> {
         Ok(String::from_utf8(self.data.clone()).unwrap())
     }
 
-    /// Returns this chunk as a byte sequences described by the PNG spec.
-    /// The following data is included in this byte sequence in order:
-    /// 1. Length of the data *(4 bytes)*
-    /// 2. Chunk type *(4 bytes)*
-    /// 3. The data itself *(`length` bytes)*
-    /// 4. The CRC of the chunk type and data *(4 bytes)*
     pub fn as_bytes(&self) -> Vec<u8> {
         self.length
             .to_be_bytes()
@@ -87,13 +76,9 @@ impl TryFrom<&[u8]> for Chunk {
             )));
         }
 
-        // First 4 bytes are length
         let length = u32::from_be_bytes(bytes[0..4].try_into()?);
-        
-        // Next 4 bytes are chunk type
         let chunk_type = ChunkType::try_from([bytes[4], bytes[5], bytes[6], bytes[7]])?;
         
-        // Validate total length
         if bytes.len() != (length + 12) as usize {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -101,20 +86,17 @@ impl TryFrom<&[u8]> for Chunk {
             )));
         }
 
-        // Extract data bytes
         let data = bytes[8..(8 + length as usize)].to_vec();
         
         // Last 4 bytes are CRC
         let actual_crc = u32::from_be_bytes(bytes[(8 + length as usize)..].try_into()?);
 
-        // Calculate expected CRC
         let crc: crc::Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
         let mut digest = crc.digest();
         digest.update(&bytes[4..8]); // chunk type bytes
         digest.update(&data); // data bytes
         let expected_crc = digest.finalize();
 
-        // Validate CRC
         if actual_crc != expected_crc {
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,

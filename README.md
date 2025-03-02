@@ -2,6 +2,7 @@ Encode your secret messages into PNGs with pngAbe!
 <br>
 First, run cargo build --release && cp target/release/pngAbe .
 <br>
+<br>
 Commands:
 <br>
 ./pngAbe encode -p PATH -c CHUNK_TYPE -m MESSAGE

@@ -1,4 +1,4 @@
-# pngAbe - Steganography Tool for PNG Images
+# pngAbe - Message Encoder/Decoder Tool for PNG Images
 
 **pngAbe** allows you to secretly encode messages into PNG files by embedding data in custom PNG chunks.
 
